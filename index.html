@@ -3,66 +3,444 @@
 <head>
   <meta charset="UTF-8" />
   <title>Youth Playing Time Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { font-size: 1.8rem; }
-    button { cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.4rem 0.5rem; text-align: center; }
-    th { background: #f5f5f5; }
-    .controls { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-    .player-row.active { background: #e3f6ff; }
-    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 0.4rem; font-size: 0.75rem; }
-    .badge-good { background: #e6ffed; color: #03662c; }
-    .badge-warn { background: #fff5e6; color: #8a4b00; }
-    .badge-bad { background: #ffe6e6; color: #9b1c1c; }
-    footer { margin-top: 2rem; font-size: 0.8rem; color: #555; }
-    input[type="text"] { padding: 0.25rem 0.4rem; }
+    :root {
+      color-scheme: dark;
+      --bg: #050608;
+      --panel: #111318;
+      --panel-alt: #161922;
+      --border-subtle: #262a33;
+      --accent: #f5f5f5;
+      --accent-soft: #9ca3af;
+      --danger: #f97373;
+      --warn: #fbbf24;
+      --ok: #4ade80;
+      --muted: #6b7280;
+      --text: #f9fafb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
+      color: var(--text);
+      max-width: 1120px;
+      margin-inline: auto;
+    }
+
+    h1 { font-size: 1.6rem; margin: 0 0 0.25rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); margin: 1.5rem 0 0.5rem; }
+
+    p { margin: 0.1rem 0 0.75rem; color: var(--muted); font-size: 0.85rem; }
+
+    button {
+      cursor: pointer;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: #020617;
+      color: var(--accent);
+      padding: 0.35rem 0.9rem;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      white-space: nowrap;
+    }
+
+    button.primary { background: #f9fafb; color: #020617; font-weight: 600; }
+    button.danger { border-color: #991b1b; color: #fecaca; }
+    button.small { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+
+    button:active { transform: translateY(1px); }
+
+    input, select {
+      background: #020617;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      padding: 0.35rem 0.75rem;
+      color: var(--accent);
+      font-size: 0.8rem;
+      min-width: 0;
+    }
+
+    input::placeholder { color: #4b5563; }
+
+    .shell {
+      background: rgba(15,23,42,0.95);
+      border-radius: 1rem;
+      border: 1px solid rgba(148,163,184,0.12);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.7);
+      padding: 0.9rem 0.9rem 1rem;
+    }
+
+    .top-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .chip { border-radius: 999px; border: 1px solid var(--border-subtle); padding: 0.15rem 0.6rem; }
+
+    .tabs {
+      display: flex;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+      font-size: 0.75rem;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .tab.active {
+      background: var(--accent);
+      color: #020617;
+      font-weight: 600;
+    }
+
+    .controls {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .controls-group { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+
+    .controls label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+
+    .controls .game-clock {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      background: #0b1120;
+      border: 1px solid #1f2937;
+      font-size: 0.8rem;
+    }
+
+    .layout { margin-top: 0.75rem; display: none; }
+    .layout.active { display: block; }
+
+    .layout-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.35rem; }
+
+    .slot {
+      background: linear-gradient(135deg, #020617, #020617);
+      border-radius: 0.6rem;
+      border: 1px dashed #334155;
+      min-height: 3.2rem;
+      padding: 0.35rem 0.45rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.15rem;
+    }
+
+    .slot-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); }
+
+    .slot-main {
+      display: flex;
+      align-items: baseline;
+      gap: 0.35rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slot-number { font-weight: 700; font-size: 1.1rem; }
+    .slot-name { font-size: 0.8rem; color: var(--accent-soft); }
+
+    .slot-meta { font-size: 0.7rem; color: var(--muted); display: flex; gap: 0.3rem; }
+
+    .slot.injured { border-style: solid; border-color: #b91c1c; }
+
+    .slot.injured .slot-meta span { color: #fecaca; }
+
+    .roster {
+      margin-top: 0.75rem;
+      display: none;
+    }
+
+    .roster.active { display: block; }
+
+    .roster-header, .player-row {
+      display: grid;
+      grid-template-columns: 0.7fr 0.7fr 0.7fr 0.7fr 1.4fr;
+      gap: 0.3rem;
+      align-items: center;
+    }
+
+    .roster-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+      padding-inline: 0.15rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+      margin-right: -0.25rem;
+    }
+
+    .player-row {
+      background: #020617;
+      border-radius: 0.6rem;
+      border: 1px solid #111827;
+      padding: 0.3rem 0.4rem;
+      font-size: 0.8rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .player-row.active {
+      border-color: #facc15;
+      box-shadow: 0 0 0 1px rgba(234,179,8,0.6);
+    }
+
+    .player-main { display: flex; align-items: baseline; gap: 0.25rem; }
+    .player-number { font-weight: 700; font-size: 1rem; }
+    .player-name { color: var(--accent-soft); }
+    .player-pos { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; }
+
+    .pill {
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.7rem;
+    }
+
+    .pill.on { border-color: #22c55e; color: #bbf7d0; }
+    .pill.bench { border-color: #4b5563; color: #9ca3af; }
+    .pill.injured { border-color: #f97373; color: #fecaca; }
+
+    .player-mins { font-variant-numeric: tabular-nums; }
+
+    .player-warnings { font-size: 0.7rem; color: #fecaca; }
+
+    .actions { display: flex; gap: 0.2rem; justify-content: flex-end; }
+
+    footer {
+      margin-top: 1rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .badge-dev { border-radius: 999px; border: 1px dashed #4b5563; padding: 0.1rem 0.5rem; font-size: 0.7rem; }
+
+    /* Simple full-screen passcode gate */
+    .gate {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, #020617 0, #000 80%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 20;
+    }
+
+    .gate-card {
+      max-width: 360px;
+      width: 100%;
+      background: #020617;
+      border-radius: 0.9rem;
+      border: 1px solid #111827;
+      padding: 1rem;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.9);
+    }
+
+    .gate-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .gate-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.75rem; }
+
+    .gate-row { display: flex; gap: 0.4rem; align-items: center; }
+
+    .gate-error { margin-top: 0.5rem; font-size: 0.75rem; color: #fecaca; }
+
+    @media (max-width: 720px) {
+      .roster-header, .player-row { grid-template-columns: 0.9fr 0.7fr 0.7fr 0.7fr 1.2fr; }
+      body { padding-inline: 0.75rem; }
+    }
   </style>
 </head>
 <body>
-  <h1>Youth Playing Time Tracker</h1>
-  <p>
-    A tiny sideline app for coaches who want to keep playing time fair (and have fewer awkward
-    conversations with parents). Add your roster, start the clock, and tap players in/out as you sub.
-  </p>
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <div class="gate-title">Coach view</div>
+      <div class="gate-sub">Enter sideline passcode to open the tracker.</div>
+      <div class="gate-row">
+        <input id="gateInput" type="password" placeholder="Passcode" autocomplete="off" />
+        <button id="gateBtn" class="primary small">Unlock</button>
+      </div>
+      <div id="gateError" class="gate-error" style="display:none;">Wrong passcode.</div>
+      <p style="margin-top:0.75rem; font-size:0.7rem; color:var(--muted);">
+        Hint for dev: <code style="font-size:0.7rem;">testingjiggly</code> — or add <code>?dev=1</code> to the URL.
+      </p>
+    </div>
+  </div>
 
-  <section>
-    <h2>Roster</h2>
-    <div class="controls">
-      <input id="playerName" type="text" placeholder="Player name" />
-      <button id="addPlayer">Add Player</button>
-      <button id="resetGame">Reset Game</button>
-      <span id="gameClock">Game time: 00:00</span>
+  <header class="top-row">
+    <div>
+      <h1>Playing Time Console</h1>
+      <p>Youth soccer &amp; basketball minutes tracker. Tap kids into play; it keeps the clock honest.</p>
+      <div class="chip-row">
+        <span class="chip">Sport: <span id="sportLabel">Soccer</span></span>
+        <span class="chip">Mode: Live game</span>
+      </div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Player</th>
-          <th>Status</th>
-          <th>Minutes Played</th>
-          <th>Difference from Team Avg</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="players"></tbody>
-    </table>
-  </section>
+    <div style="display:flex; flex-direction:column; gap:0.45rem; align-items:flex-end;">
+      <div class="tabs" id="viewTabs">
+        <div class="tab active" data-view="roster">Roster</div>
+        <div class="tab" data-view="layout">Field/Court</div>
+      </div>
+      <button id="devModeToggle" class="small" title="Toggle pre-filled dummy data">
+        Dev seed
+      </button>
+    </div>
+  </header>
 
-  <footer>
-    Built by Navi & Stetson in a few minutes as a proof-of-concept. No backend, all in your browser.
-  </footer>
+  <main class="shell" id="appShell" style="opacity:0.12; pointer-events:none; filter:blur(1px);">
+    <section>
+      <h2>Session</h2>
+      <div class="controls">
+        <div class="controls-group">
+          <label for="sportSelect">Sport</label>
+          <select id="sportSelect">
+            <option value="soccer">Soccer</option>
+            <option value="basketball">Basketball</option>
+          </select>
+        </div>
+
+        <div class="controls-group">
+          <label for="playerName">Add player</label>
+          <input id="playerName" type="text" placeholder="Name" />
+          <input id="playerNumber" type="text" placeholder="#" style="max-width:3.2rem;" />
+          <select id="playerPosition">
+            <option value="">Pos</option>
+            <option value="GK">GK</option>
+            <option value="D">D</option>
+            <option value="M">M</option>
+            <option value="F">F</option>
+            <option value="G">G</option>
+            <option value="W">W</option>
+            <option value="C">C</option>
+          </select>
+          <button id="addPlayer" class="primary small">Add</button>
+        </div>
+
+        <div class="controls-group">
+          <span id="gameClock" class="game-clock">Game time: 00:00</span>
+          <button id="resetGame" class="small danger">Reset game</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="rosterView" class="roster active">
+      <h2>Roster</h2>
+      <div class="roster-header">
+        <div>Player</div>
+        <div>Status</div>
+        <div>Minutes</div>
+        <div>Hand/Foot</div>
+        <div>Flags</div>
+      </div>
+      <div id="players" class="player-list"></div>
+    </section>
+
+    <section id="layoutView" class="layout">
+      <h2>Shape on field / court</h2>
+      <p style="font-size:0.75rem; color:var(--muted); margin-bottom:0.5rem;">
+        The first few active players are auto-slotted into a simple shape for a quick sanity check.
+      </p>
+      <div id="layoutGrid" class="layout-grid"></div>
+    </section>
+
+    <footer>
+      <span>Built with Navi &amp; Stetson — stateless, no backend, tweak freely.</span>
+      <span class="badge-dev">Dev hint: toggle "Dev seed" to load dummy players.</span>
+    </footer>
+  </main>
 
   <script>
-    const playersTbody = document.getElementById('players');
+    const PASSCODE = 'testingjiggly';
+
+    const gateEl = document.getElementById('gate');
+    const gateInput = document.getElementById('gateInput');
+    const gateBtn = document.getElementById('gateBtn');
+    const gateError = document.getElementById('gateError');
+    const appShell = document.getElementById('appShell');
+
+    function unlock() {
+      const value = gateInput.value.trim();
+      if (value === PASSCODE) {
+        gateEl.style.display = 'none';
+        appShell.style.opacity = '1';
+        appShell.style.pointerEvents = 'auto';
+        appShell.style.filter = 'none';
+        return;
+      }
+      gateError.style.display = 'block';
+    }
+
+    gateBtn.addEventListener('click', unlock);
+    gateInput.addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('dev') === '1') {
+      gateEl.style.display = 'none';
+      appShell.style.opacity = '1';
+      appShell.style.pointerEvents = 'auto';
+      appShell.style.filter = 'none';
+    }
+
+    const sportSelect = document.getElementById('sportSelect');
+    const sportLabel = document.getElementById('sportLabel');
+    const playersContainer = document.getElementById('players');
     const playerNameInput = document.getElementById('playerName');
+    const playerNumberInput = document.getElementById('playerNumber');
+    const playerPositionInput = document.getElementById('playerPosition');
     const gameClockEl = document.getElementById('gameClock');
+    const devModeToggle = document.getElementById('devModeToggle');
+    const layoutGrid = document.getElementById('layoutGrid');
 
     let players = [];
     let gameStart = null;
     let lastTick = null;
     let timerId = null;
+
+    const SHAPES = {
+      soccer: ['GK', 'D', 'D', 'M', 'M', 'F', 'F'],
+      basketball: ['G', 'G', 'W', 'W', 'C'],
+    };
 
     function startClockIfNeeded() {
       if (!gameStart) {
@@ -84,27 +462,51 @@
       if (deltaSec <= 0) return;
       lastTick = now;
 
-      // update playing time for active players
       players.forEach(p => {
-        if (p.active) p.secondsPlayed += deltaSec;
+        if (p.status === 'on') p.secondsPlayed += deltaSec;
       });
-      render();
 
       const totalSec = Math.floor((now - gameStart) / 1000);
       gameClockEl.textContent = `Game time: ${formatSeconds(totalSec)}`;
+      render();
     }
 
-    function addPlayer(name) {
-      if (!name.trim()) return;
-      players.push({ id: Date.now() + Math.random(), name: name.trim(), secondsPlayed: 0, active: false });
+    function addPlayerFromInputs() {
+      const name = playerNameInput.value.trim();
+      const numberRaw = playerNumberInput.value.trim();
+      if (!name && !numberRaw) return;
+
+      const number = numberRaw || '';
+      const pos = playerPositionInput.value || '';
+
+      players.push({
+        id: Date.now() + Math.random(),
+        name: name || `#${number}`,
+        number,
+        position: pos,
+        dominant: '',
+        injury: '',
+        status: 'bench',
+        secondsPlayed: 0,
+      });
+
       playerNameInput.value = '';
+      playerNumberInput.value = '';
+      playerPositionInput.value = '';
       render();
     }
 
-    function togglePlayer(id) {
-      startClockIfNeeded();
-      players = players.map(p => p.id === id ? { ...p, active: !p.active } : p);
+    function setStatus(id, status) {
+      if (status === 'on') startClockIfNeeded();
+      players = players.map(p => p.id === id ? { ...p, status } : p);
       render();
+    }
+
+    function toggleOnOff(id) {
+      const player = players.find(p => p.id === id);
+      if (!player) return;
+      const nextStatus = player.status === 'on' ? 'bench' : 'on';
+      setStatus(id, nextStatus);
     }
 
     function removePlayer(id) {
@@ -113,7 +515,7 @@
     }
 
     function resetGame() {
-      players = players.map(p => ({ ...p, secondsPlayed: 0, active: false }));
+      players = players.map(p => ({ ...p, secondsPlayed: 0, status: 'bench' }));
       gameStart = null;
       lastTick = null;
       if (timerId) clearInterval(timerId);
@@ -122,49 +524,166 @@
       render();
     }
 
-    function render() {
-      const totalMinutesArray = players.map(p => p.secondsPlayed / 60);
-      const teamAvg = totalMinutesArray.length
-        ? totalMinutesArray.reduce((a, b) => a + b, 0) / totalMinutesArray.length
-        : 0;
+    function updateDominant(id, value) {
+      players = players.map(p => p.id === id ? { ...p, dominant: value } : p);
+      render();
+    }
 
-      playersTbody.innerHTML = '';
+    function updateInjury(id, value) {
+      players = players.map(p => p.id === id ? { ...p, injury: value } : p);
+      render();
+    }
+
+    function renderRoster() {
+      playersContainer.innerHTML = '';
       players.forEach(p => {
-        const tr = document.createElement('tr');
-        tr.className = 'player-row' + (p.active ? ' active' : '');
+        const row = document.createElement('div');
+        row.className = 'player-row' + (p.status === 'on' ? ' active' : '');
 
-        const diff = p.secondsPlayed / 60 - teamAvg;
-        let badgeClass = 'badge-good';
-        if (Math.abs(diff) >= 5) badgeClass = 'badge-bad';
-        else if (Math.abs(diff) >= 2) badgeClass = 'badge-warn';
+        const statusLabel = p.status === 'on' ? 'On' : (p.status === 'injured' ? 'Injured' : 'Bench');
 
-        tr.innerHTML = `
-          <td>${p.name}</td>
-          <td>${p.active ? 'On field' : 'On bench'}</td>
-          <td>${(p.secondsPlayed / 60).toFixed(1)}</td>
-          <td>
-            <span class="badge ${badgeClass}">
-              ${diff >= 0 ? '+' : ''}${diff.toFixed(1)} min
-            </span>
-          </td>
-          <td>
-            <button data-action="toggle">${p.active ? 'Bench' : 'Play'}</button>
-            <button data-action="remove">Remove</button>
-          </td>
+        row.innerHTML = `
+          <div class="player-main">
+            <span class="player-number">${p.number || '–'}</span>
+            <span class="player-name">${p.name}</span>
+            <span class="player-pos">${p.position || ''}</span>
+          </div>
+          <div>
+            <span class="pill ${p.status === 'on' ? 'on' : p.status === 'injured' ? 'injured' : 'bench'}">${statusLabel}</span>
+          </div>
+          <div class="player-mins">${(p.secondsPlayed / 60).toFixed(1)}</div>
+          <div>
+            <select data-dominant="${p.id}">
+              <option value="">–</option>
+              <option value="R" ${p.dominant === 'R' ? 'selected' : ''}>R</option>
+              <option value="L" ${p.dominant === 'L' ? 'selected' : ''}>L</option>
+              <option value="B" ${p.dominant === 'B' ? 'selected' : ''}>Both</option>
+            </select>
+          </div>
+          <div>
+            <div class="player-warnings">${p.injury ? 'Injury: ' + p.injury : ''}</div>
+            <div class="actions">
+              <button class="small" data-action="toggle" data-id="${p.id}">${p.status === 'on' ? 'Bench' : 'Play'}</button>
+              <button class="small" data-action="injure" data-id="${p.id}">Injured</button>
+              <button class="small danger" data-action="remove" data-id="${p.id}">X</button>
+            </div>
+          </div>
         `;
 
-        tr.querySelector('[data-action="toggle"]').addEventListener('click', () => togglePlayer(p.id));
-        tr.querySelector('[data-action="remove"]').addEventListener('click', () => removePlayer(p.id));
+        row.querySelectorAll('button').forEach(btn => {
+          const id = Number(btn.getAttribute('data-id'));
+          const action = btn.getAttribute('data-action');
+          if (action === 'toggle') btn.addEventListener('click', () => toggleOnOff(id));
+          if (action === 'injure') btn.addEventListener('click', () => {
+            const bodyPart = prompt('Injury / watch area (e.g., ankle, knee, head):', players.find(p => p.id === id)?.injury || '');
+            if (bodyPart === null) return;
+            updateInjury(id, bodyPart.trim());
+            setStatus(id, 'injured');
+          });
+          if (action === 'remove') btn.addEventListener('click', () => removePlayer(id));
+        });
 
-        playersTbody.appendChild(tr);
+        const dominantSelect = row.querySelector('select[data-dominant]');
+        dominantSelect.addEventListener('change', e => updateDominant(Number(dominantSelect.getAttribute('data-dominant')), e.target.value));
+
+        playersContainer.appendChild(row);
       });
     }
 
-    document.getElementById('addPlayer').addEventListener('click', () => addPlayer(playerNameInput.value));
-    playerNameInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') addPlayer(playerNameInput.value);
-    });
+    function renderLayout() {
+      const sport = sportSelect.value;
+      const shape = SHAPES[sport] || [];
+      const activePlayers = players.filter(p => p.status === 'on');
+
+      layoutGrid.innerHTML = '';
+
+      shape.forEach((slotPos, index) => {
+        const p = activePlayers[index];
+        const slot = document.createElement('div');
+        slot.className = 'slot' + (p && p.injury ? ' injured' : '');
+
+        const label = sport === 'soccer' ? slotPos : slotPos;
+
+        slot.innerHTML = `
+          <div class="slot-label">${label}</div>
+          <div class="slot-main">
+            <span class="slot-number">${p ? (p.number || '–') : '–'}</span>
+            <span class="slot-name">${p ? p.name : 'Empty'}</span>
+          </div>
+          <div class="slot-meta">
+            <span>${p ? (p.position || '') : ''}</span>
+            <span>${p && p.dominant ? p.dominant + '-dom' : ''}</span>
+            <span>${p && p.injury ? 'Injury: ' + p.injury : ''}</span>
+          </div>
+        `;
+
+        layoutGrid.appendChild(slot);
+      });
+    }
+
+    function render() {
+      renderRoster();
+      renderLayout();
+    }
+
+    document.getElementById('addPlayer').addEventListener('click', addPlayerFromInputs);
+    playerNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') addPlayerFromInputs(); });
+    playerNumberInput.addEventListener('keydown', e => { if (e.key === 'Enter') addPlayerFromInputs(); });
     document.getElementById('resetGame').addEventListener('click', resetGame);
+
+    sportSelect.addEventListener('change', e => {
+      const value = e.target.value;
+      sportLabel.textContent = value === 'soccer' ? 'Soccer' : 'Basketball';
+      renderLayout();
+    });
+
+    document.getElementById('viewTabs').addEventListener('click', e => {
+      const tab = e.target.closest('.tab');
+      if (!tab) return;
+      const view = tab.getAttribute('data-view');
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+      document.getElementById('rosterView').classList.toggle('active', view === 'roster');
+      document.getElementById('layoutView').classList.toggle('active', view === 'layout');
+    });
+
+    const DEV_SETS = {
+      soccer: [
+        { number: '1', name: 'Ava', position: 'GK', dominant: 'R', injury: '' },
+        { number: '3', name: 'Liam', position: 'D', dominant: 'L', injury: 'ankle' },
+        { number: '5', name: 'Mia', position: 'D', dominant: 'R', injury: '' },
+        { number: '7', name: 'Noah', position: 'M', dominant: 'R', injury: '' },
+        { number: '9', name: 'Isla', position: 'M', dominant: 'B', injury: '' },
+        { number: '10', name: 'Ethan', position: 'F', dominant: 'R', injury: '' },
+        { number: '11', name: 'Zoe', position: 'F', dominant: 'L', injury: '' },
+      ],
+      basketball: [
+        { number: '1', name: 'Chris', position: 'G', dominant: 'R', injury: '' },
+        { number: '2', name: 'Jordan', position: 'G', dominant: 'L', injury: '' },
+        { number: '3', name: 'Taylor', position: 'W', dominant: 'R', injury: 'knee' },
+        { number: '4', name: 'Alex', position: 'W', dominant: 'B', injury: '' },
+        { number: '5', name: 'Morgan', position: 'C', dominant: 'R', injury: '' },
+      ],
+    };
+
+    function seedDevData() {
+      const sport = sportSelect.value;
+      const set = DEV_SETS[sport] || [];
+      players = set.map((p, index) => ({
+        id: Date.now() + index,
+        ...p,
+        status: index < (sport === 'soccer' ? 7 : 5) ? 'on' : 'bench',
+        secondsPlayed: Math.floor(Math.random() * 15) * 60,
+      }));
+      gameStart = Date.now() - 15 * 60 * 1000;
+      lastTick = gameStart;
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(tick, 1000);
+      render();
+    }
+
+    devModeToggle.addEventListener('click', seedDevData);
+
+    render();
   </script>
 </body>
 </html>
