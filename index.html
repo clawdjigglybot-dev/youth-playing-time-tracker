@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Youth Playing Time Tracker</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.8rem; }
+    button { cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.5rem; text-align: center; }
+    th { background: #f5f5f5; }
+    .controls { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .player-row.active { background: #e3f6ff; }
+    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 0.4rem; font-size: 0.75rem; }
+    .badge-good { background: #e6ffed; color: #03662c; }
+    .badge-warn { background: #fff5e6; color: #8a4b00; }
+    .badge-bad { background: #ffe6e6; color: #9b1c1c; }
+    footer { margin-top: 2rem; font-size: 0.8rem; color: #555; }
+    input[type="text"] { padding: 0.25rem 0.4rem; }
+  </style>
+</head>
+<body>
+  <h1>Youth Playing Time Tracker</h1>
+  <p>
+    A tiny sideline app for coaches who want to keep playing time fair (and have fewer awkward
+    conversations with parents). Add your roster, start the clock, and tap players in/out as you sub.
+  </p>
+
+  <section>
+    <h2>Roster</h2>
+    <div class="controls">
+      <input id="playerName" type="text" placeholder="Player name" />
+      <button id="addPlayer">Add Player</button>
+      <button id="resetGame">Reset Game</button>
+      <span id="gameClock">Game time: 00:00</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Status</th>
+          <th>Minutes Played</th>
+          <th>Difference from Team Avg</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="players"></tbody>
+    </table>
+  </section>
+
+  <footer>
+    Built by Navi & Stetson in a few minutes as a proof-of-concept. No backend, all in your browser.
+  </footer>
+
+  <script>
+    const playersTbody = document.getElementById('players');
+    const playerNameInput = document.getElementById('playerName');
+    const gameClockEl = document.getElementById('gameClock');
+
+    let players = [];
+    let gameStart = null;
+    let lastTick = null;
+    let timerId = null;
+
+    function startClockIfNeeded() {
+      if (!gameStart) {
+        gameStart = Date.now();
+        lastTick = gameStart;
+        timerId = setInterval(tick, 1000);
+      }
+    }
+
+    function formatSeconds(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function tick() {
+      const now = Date.now();
+      const deltaSec = Math.floor((now - lastTick) / 1000);
+      if (deltaSec <= 0) return;
+      lastTick = now;
+
+      // update playing time for active players
+      players.forEach(p => {
+        if (p.active) p.secondsPlayed += deltaSec;
+      });
+      render();
+
+      const totalSec = Math.floor((now - gameStart) / 1000);
+      gameClockEl.textContent = `Game time: ${formatSeconds(totalSec)}`;
+    }
+
+    function addPlayer(name) {
+      if (!name.trim()) return;
+      players.push({ id: Date.now() + Math.random(), name: name.trim(), secondsPlayed: 0, active: false });
+      playerNameInput.value = '';
+      render();
+    }
+
+    function togglePlayer(id) {
+      startClockIfNeeded();
+      players = players.map(p => p.id === id ? { ...p, active: !p.active } : p);
+      render();
+    }
+
+    function removePlayer(id) {
+      players = players.filter(p => p.id !== id);
+      render();
+    }
+
+    function resetGame() {
+      players = players.map(p => ({ ...p, secondsPlayed: 0, active: false }));
+      gameStart = null;
+      lastTick = null;
+      if (timerId) clearInterval(timerId);
+      timerId = null;
+      gameClockEl.textContent = 'Game time: 00:00';
+      render();
+    }
+
+    function render() {
+      const totalMinutesArray = players.map(p => p.secondsPlayed / 60);
+      const teamAvg = totalMinutesArray.length
+        ? totalMinutesArray.reduce((a, b) => a + b, 0) / totalMinutesArray.length
+        : 0;
+
+      playersTbody.innerHTML = '';
+      players.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.className = 'player-row' + (p.active ? ' active' : '');
+
+        const diff = p.secondsPlayed / 60 - teamAvg;
+        let badgeClass = 'badge-good';
+        if (Math.abs(diff) >= 5) badgeClass = 'badge-bad';
+        else if (Math.abs(diff) >= 2) badgeClass = 'badge-warn';
+
+        tr.innerHTML = `
+          <td>${p.name}</td>
+          <td>${p.active ? 'On field' : 'On bench'}</td>
+          <td>${(p.secondsPlayed / 60).toFixed(1)}</td>
+          <td>
+            <span class="badge ${badgeClass}">
+              ${diff >= 0 ? '+' : ''}${diff.toFixed(1)} min
+            </span>
+          </td>
+          <td>
+            <button data-action="toggle">${p.active ? 'Bench' : 'Play'}</button>
+            <button data-action="remove">Remove</button>
+          </td>
+        `;
+
+        tr.querySelector('[data-action="toggle"]').addEventListener('click', () => togglePlayer(p.id));
+        tr.querySelector('[data-action="remove"]').addEventListener('click', () => removePlayer(p.id));
+
+        playersTbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('addPlayer').addEventListener('click', () => addPlayer(playerNameInput.value));
+    playerNameInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') addPlayer(playerNameInput.value);
+    });
+    document.getElementById('resetGame').addEventListener('click', resetGame);
+  </script>
+</body>
+</html>
